@@ -1,0 +1,1331 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>검색어 증감 비교 대시보드</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Space+Mono:wght@400;700&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #12151c;
+    --surface2: #1a1e28;
+    --border: #252a38;
+    --accent: #00e5a0;
+    --accent2: #ff4d6a;
+    --accent3: #4d9fff;
+    --text: #e8eaf0;
+    --text-muted: #6b7590;
+    --up: #00e5a0;
+    --down: #ff4d6a;
+    --neutral: #4d9fff;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 40px 24px;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 48px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .header-left h1 {
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+
+  .header-left h1 span {
+    color: var(--accent);
+  }
+
+  .header-left p {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-top: 6px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .period-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .period-badge .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Upload Section */
+  .upload-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 40px;
+  }
+
+  .upload-card {
+    background: var(--surface);
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    text-align: center;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  .upload-card:hover, .upload-card.dragover {
+    border-color: var(--accent);
+    background: rgba(0,229,160,0.04);
+  }
+
+  .upload-card.loaded {
+    border-style: solid;
+    border-color: var(--accent);
+    background: rgba(0,229,160,0.06);
+  }
+
+  .upload-card input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .upload-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .upload-label.period-a { color: var(--accent3); }
+  .upload-label.period-b { color: var(--accent); }
+
+  .upload-icon {
+    font-size: 32px;
+    margin-bottom: 10px;
+  }
+
+  .upload-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .upload-filename {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-top: 8px;
+    font-family: 'Space Mono', monospace;
+    word-break: break-all;
+  }
+
+  .upload-period {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .search-box {
+    flex: 1;
+    min-width: 200px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .search-box:focus {
+    border-color: var(--accent);
+  }
+
+  .filter-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    font-family: 'Noto Sans KR', sans-serif;
+  }
+
+  .filter-btn:hover, .filter-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,229,160,0.06);
+  }
+
+  .filter-btn.active-down {
+    border-color: var(--down);
+    color: var(--down);
+    background: rgba(255,77,106,0.06);
+  }
+
+  .select-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    cursor: pointer;
+    outline: none;
+    font-family: 'Noto Sans KR', sans-serif;
+  }
+
+  /* Summary Cards */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .summary-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .summary-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+  }
+
+  .summary-card.card-total::after { background: var(--accent3); }
+  .summary-card.card-up::after { background: var(--up); }
+  .summary-card.card-down::after { background: var(--down); }
+  .summary-card.card-neutral::after { background: var(--neutral); }
+
+  .summary-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+
+  .summary-value {
+    font-size: 28px;
+    font-weight: 900;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .summary-card.card-total .summary-value { color: var(--accent3); }
+  .summary-card.card-up .summary-value { color: var(--up); }
+  .summary-card.card-down .summary-value { color: var(--down); }
+  .summary-card.card-neutral .summary-value { color: var(--neutral); }
+
+  .summary-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  /* Table */
+  .table-wrapper {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .table-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .table-title {
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .table-count {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: 'Space Mono', monospace;
+  }
+
+  .table-scroll {
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  thead th {
+    background: var(--surface2);
+    padding: 12px 16px;
+    text-align: right;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid var(--border);
+    transition: color 0.2s;
+  }
+
+  thead th:hover { color: var(--accent); }
+
+  thead th:first-child,
+  thead th:nth-child(2) {
+    text-align: left;
+  }
+
+  thead th.sorted { color: var(--accent); }
+
+  tbody tr {
+    border-bottom: 1px solid rgba(37,42,56,0.6);
+    transition: background 0.15s;
+  }
+
+  tbody tr:hover { background: rgba(255,255,255,0.02); }
+  tbody tr:last-child { border-bottom: none; }
+
+  td {
+    padding: 12px 16px;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  td:first-child {
+    text-align: left;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  td:nth-child(2) {
+    text-align: left;
+    font-weight: 500;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .val-a {
+    color: var(--accent3);
+    font-family: 'Space Mono', monospace;
+  }
+
+  .val-b {
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+  }
+
+  .delta {
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+  }
+
+  .delta.up { color: var(--up); }
+  .delta.down { color: var(--down); }
+  .delta.neutral { color: var(--neutral); }
+
+  .delta-bar-cell {
+    width: 100px;
+    padding: 8px 16px;
+  }
+
+  .delta-bar-wrap {
+    position: relative;
+    height: 6px;
+    background: var(--surface2);
+    border-radius: 3px;
+    overflow: visible;
+  }
+
+  .delta-bar {
+    position: absolute;
+    top: 0;
+    height: 6px;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+
+  .delta-bar.up { background: var(--up); box-shadow: 0 0 6px rgba(0,229,160,0.5); }
+  .delta-bar.down { background: var(--down); box-shadow: 0 0 6px rgba(255,77,106,0.5); }
+
+  /* Loading */
+  .loading {
+    display: none;
+    text-align: center;
+    padding: 60px;
+    color: var(--text-muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+  }
+
+  .loading.visible { display: block; }
+
+  .spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    margin-right: 10px;
+    vertical-align: middle;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 80px 24px;
+    color: var(--text-muted);
+  }
+
+  .empty-state .big-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.4;
+  }
+
+  .empty-state p {
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+
+  .empty-state small {
+    font-size: 12px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* Pagination */
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 20px 24px;
+    border-top: 1px solid var(--border);
+  }
+
+  .page-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .page-btn:hover, .page-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,229,160,0.06);
+  }
+
+  .page-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  .page-info {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: 'Space Mono', monospace;
+    margin: 0 8px;
+  }
+
+  /* Bar Chart */
+  .chart-section {
+    margin-bottom: 32px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+
+  .chart-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .chart-title .legend {
+    display: flex;
+    gap: 16px;
+    margin-left: auto;
+    font-size: 11px;
+    font-family: 'Space Mono', monospace;
+    color: var(--text-muted);
+  }
+
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+    vertical-align: middle;
+  }
+
+  #barChart {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .bar-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+
+  .bar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+  }
+
+  .bar-row .bar-label {
+    width: 140px;
+    flex-shrink: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: right;
+    color: var(--text-muted);
+    font-size: 11px;
+  }
+
+  .bar-row .bar-track {
+    flex: 1;
+    height: 16px;
+    background: var(--surface2);
+    border-radius: 3px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .bar-row .bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.6s cubic-bezier(.4,0,.2,1);
+    position: relative;
+  }
+
+  .bar-row .bar-fill.a { background: rgba(77,159,255,0.7); }
+  .bar-row .bar-fill.b { background: rgba(0,229,160,0.7); }
+
+  .bar-row .bar-val {
+    width: 70px;
+    flex-shrink: 0;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+
+  .metric-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .metric-tab {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .metric-tab.active {
+    border-color: var(--accent3);
+    color: var(--accent3);
+    background: rgba(77,159,255,0.08);
+  }
+
+  .download-btn {
+    background: linear-gradient(135deg, rgba(0,229,160,0.15), rgba(0,229,160,0.05));
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-weight: 700;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+
+  .download-btn:hover {
+    background: rgba(0,229,160,0.2);
+    box-shadow: 0 0 12px rgba(0,229,160,0.2);
+    transform: translateY(-1px);
+  }
+
+  .download-btn:active {
+    transform: translateY(0);
+  }
+
+  .download-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+
+    .upload-section { grid-template-columns: 1fr; }
+    .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    .controls { flex-direction: column; }
+    .search-box { min-width: unset; width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="header-left">
+      <h1>검색어 <span>증감 비교</span> 대시보드</h1>
+      <p id="periodLabel">CSV 파일 2개를 업로드하세요</p>
+    </div>
+    <div class="period-badge">
+      <div class="dot"></div>
+      <span id="statusText">대기 중</span>
+    </div>
+  </header>
+
+  <!-- Upload -->
+  <div class="upload-section">
+    <div class="upload-card" id="dropA">
+      <input type="file" id="fileA" accept=".csv">
+      <div class="upload-label period-a">📂 이전 기간 (Period A)</div>
+      <div class="upload-icon">📄</div>
+      <div class="upload-hint">CSV 파일을 클릭하거나 드래그하세요</div>
+      <div class="upload-filename" id="fileAName"></div>
+      <div class="upload-period" id="fileAPeriod"></div>
+    </div>
+    <div class="upload-card" id="dropB">
+      <input type="file" id="fileB" accept=".csv">
+      <div class="upload-label period-b">📂 최근 기간 (Period B)</div>
+      <div class="upload-icon">📄</div>
+      <div class="upload-hint">CSV 파일을 클릭하거나 드래그하세요</div>
+      <div class="upload-filename" id="fileBName"></div>
+      <div class="upload-period" id="fileBPeriod"></div>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading" id="loadingEl">
+    <span class="spinner"></span> 데이터 분석 중...
+  </div>
+
+  <!-- Results -->
+  <div id="results" style="display:none">
+
+    <!-- Summary -->
+    <div class="summary-grid">
+      <div class="summary-card card-total">
+        <div class="summary-label">TOTAL KEYWORDS</div>
+        <div class="summary-value" id="totalKw">0</div>
+        <div class="summary-sub">공통 검색어 수</div>
+      </div>
+      <div class="summary-card card-up">
+        <div class="summary-label">▲ INCREASED</div>
+        <div class="summary-value" id="upCount">0</div>
+        <div class="summary-sub" id="upMetric">클릭수 증가</div>
+      </div>
+      <div class="summary-card card-down">
+        <div class="summary-label">▼ DECREASED</div>
+        <div class="summary-value" id="downCount">0</div>
+        <div class="summary-sub" id="downMetric">클릭수 감소</div>
+      </div>
+      <div class="summary-card card-neutral">
+        <div class="summary-label">◆ NO CHANGE</div>
+        <div class="summary-value" id="neutralCount">0</div>
+        <div class="summary-sub">변동 없음</div>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="chart-section">
+      <div class="chart-title">
+        상위 20 검색어 비교
+        <div class="legend">
+          <span><span class="legend-dot" style="background:rgba(77,159,255,0.7)"></span>Period A</span>
+          <span><span class="legend-dot" style="background:rgba(0,229,160,0.7)"></span>Period B</span>
+        </div>
+      </div>
+      <div class="metric-tabs" id="metricTabs"></div>
+      <div id="barChart"></div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrapper">
+      <div class="table-header-row">
+        <div class="table-title">검색어별 상세 비교</div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="table-count" id="tableCount"></div>
+          <button class="download-btn" id="downloadBtn" onclick="downloadExcel()">
+            <span>⬇</span> 전체 다운로드 (.xlsx)
+          </button>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div style="padding: 12px 24px; border-bottom: 1px solid var(--border); display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+        <input class="search-box" id="searchInput" type="text" placeholder="검색어 필터...">
+        <button class="filter-btn active" id="filterAll" onclick="setFilter('all')">전체</button>
+        <button class="filter-btn" id="filterUp" onclick="setFilter('up')">▲ 증가</button>
+        <button class="filter-btn" id="filterDown" onclick="setFilter('down')">▼ 감소</button>
+        <button class="filter-btn" id="filterNew" onclick="setFilter('new')">✦ 신규</button>
+        <button class="filter-btn" id="filterGone" onclick="setFilter('gone')">✕ 소멸</button>
+        <select class="select-box" id="sortMetric" onchange="renderTable()">
+          <option value="클릭수">정렬: 클릭수</option>
+          <option value="노출수">정렬: 노출수</option>
+          <option value="총비용">정렬: 총비용</option>
+          <option value="클릭률(%)">정렬: 클릭률</option>
+          <option value="평균 CPC">정렬: 평균CPC</option>
+        </select>
+        <select class="select-box" id="sortDir" onchange="renderTable()">
+          <option value="desc">내림차순</option>
+          <option value="asc">오름차순</option>
+        </select>
+        <select class="select-box" id="pageSize" onchange="currentPage=1;renderTable()">
+          <option value="50">50개씩</option>
+          <option value="100">100개씩</option>
+          <option value="200">200개씩</option>
+        </select>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead id="tableHead"></thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="pagination"></div>
+    </div>
+
+  </div><!-- /results -->
+
+  <!-- Empty state -->
+  <div id="emptyState">
+    <div class="empty-state">
+      <div class="big-icon">📊</div>
+      <p>두 개의 CSV 파일을 업로드하면<br>검색어 기준 증감 비교가 시작됩니다</p>
+      <small>네이버 검색광고 계정 보고서 CSV 형식 지원</small>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const METRICS = ['노출수','클릭수','클릭률(%)','평균 CPC','총비용'];
+const METRIC_LABELS = { '노출수':'노출수', '클릭수':'클릭수', '클릭률(%)':'클릭률(%)', '평균 CPC':'평균CPC', '총비용':'총비용' };
+
+let dataA = null, dataB = null;
+let mergedData = [];
+let currentFilter = 'all';
+let currentPage = 1;
+let chartMetric = '클릭수';
+let periodA = '', periodB = '';
+let sortCol = null;
+let sortAsc = false;
+
+// Parse CSV
+function parseCSV(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+  // First line is period info
+  let period = '';
+  const firstLine = lines[0].replace(/"/g,'');
+  const m = firstLine.match(/\(([^)]+)\)/);
+  if (m) period = m[1];
+
+  // Find header row
+  let headerIdx = lines.findIndex(l => l.includes('캠페인') && l.includes('검색어'));
+  if (headerIdx === -1) headerIdx = 1;
+
+  const headers = lines[headerIdx].split(',').map(h => h.replace(/"/g,'').trim());
+  const rows = [];
+
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const parts = splitCSVLine(lines[i]);
+    if (parts.length < headers.length) continue;
+    const row = {};
+    headers.forEach((h, idx) => {
+      row[h] = parts[idx] ? parts[idx].replace(/"/g,'').trim() : '';
+    });
+    if (row['검색어']) rows.push(row);
+  }
+
+  return { period, headers, rows };
+}
+
+function splitCSVLine(line) {
+  const result = [];
+  let cur = '';
+  let inQuote = false;
+  for (let c of line) {
+    if (c === '"') { inQuote = !inQuote; continue; }
+    if (c === ',' && !inQuote) { result.push(cur); cur = ''; continue; }
+    cur += c;
+  }
+  result.push(cur);
+  return result;
+}
+
+// Merge by keyword
+function mergeData(rowsA, rowsB) {
+  const mapA = {};
+  rowsA.forEach(r => {
+    const key = r['검색어'];
+    if (!mapA[key]) { mapA[key] = { 캠페인: r['캠페인'] }; METRICS.forEach(m => mapA[key][m] = 0); }
+    METRICS.forEach(m => mapA[key][m] += parseFloat(r[m]) || 0);
+    mapA[key]['캠페인'] = r['캠페인'];
+  });
+
+  const mapB = {};
+  rowsB.forEach(r => {
+    const key = r['검색어'];
+    if (!mapB[key]) { mapB[key] = { 캠페인: r['캠페인'] }; METRICS.forEach(m => mapB[key][m] = 0); }
+    METRICS.forEach(m => mapB[key][m] += parseFloat(r[m]) || 0);
+    mapB[key]['캠페인'] = r['캠페인'];
+  });
+
+  const allKeys = new Set([...Object.keys(mapA), ...Object.keys(mapB)]);
+  const merged = [];
+
+  allKeys.forEach(key => {
+    const a = mapA[key];
+    const b = mapB[key];
+    const status = !a ? 'new' : !b ? 'gone' : null;
+    const entry = {
+      검색어: key,
+      캠페인: (a || b)['캠페인'],
+      status,
+    };
+    METRICS.forEach(m => {
+      const va = a ? (a[m] || 0) : 0;
+      const vb = b ? (b[m] || 0) : 0;
+      entry[`${m}_A`] = va;
+      entry[`${m}_B`] = vb;
+      entry[`${m}_delta`] = vb - va;
+      entry[`${m}_pct`] = va === 0 ? (vb > 0 ? 100 : 0) : ((vb - va) / va * 100);
+    });
+    if (!status) {
+      const delta = entry['클릭수_delta'];
+      entry.status = delta > 0 ? 'up' : delta < 0 ? 'down' : 'neutral';
+    }
+    merged.push(entry);
+  });
+
+  return merged;
+}
+
+function fmt(n) {
+  if (n === undefined || n === null) return '-';
+  if (Number.isInteger(n)) return n.toLocaleString('ko-KR');
+  return parseFloat(n.toFixed(2)).toLocaleString('ko-KR');
+}
+
+function fmtDelta(n) {
+  if (n === 0) return '±0';
+  return (n > 0 ? '+' : '') + fmt(n);
+}
+
+function fmtPct(n) {
+  if (!isFinite(n)) return '-';
+  return (n > 0 ? '+' : '') + n.toFixed(1) + '%';
+}
+
+// Render summary
+function renderSummary() {
+  const metric = document.getElementById('sortMetric').value;
+  const totalKw = mergedData.filter(d => d.status !== 'new' && d.status !== 'gone').length;
+  document.getElementById('totalKw').textContent = totalKw.toLocaleString();
+
+  const upList = mergedData.filter(d => d[`${metric}_delta`] > 0);
+  const downList = mergedData.filter(d => d[`${metric}_delta`] < 0);
+  const neutList = mergedData.filter(d => d[`${metric}_delta`] === 0 && d.status !== 'new' && d.status !== 'gone');
+
+  document.getElementById('upCount').textContent = upList.length.toLocaleString();
+  document.getElementById('downCount').textContent = downList.length.toLocaleString();
+  document.getElementById('neutralCount').textContent = neutList.length.toLocaleString();
+  document.getElementById('upMetric').textContent = `${METRIC_LABELS[metric]} 증가`;
+  document.getElementById('downMetric').textContent = `${METRIC_LABELS[metric]} 감소`;
+}
+
+// Render chart
+function renderChart() {
+  const metric = chartMetric;
+  // Top 20 by max(A, B) for current metric
+  const sorted = [...mergedData]
+    .filter(d => d.status !== 'gone')
+    .sort((a,b) => Math.max(b[`${metric}_A`], b[`${metric}_B`]) - Math.max(a[`${metric}_A`], a[`${metric}_B`]))
+    .slice(0, 20);
+
+  const maxVal = Math.max(...sorted.map(d => Math.max(d[`${metric}_A`], d[`${metric}_B`])), 1);
+
+  // Metric tabs
+  const tabsEl = document.getElementById('metricTabs');
+  tabsEl.innerHTML = METRICS.map(m =>
+    `<button class="metric-tab ${m === chartMetric ? 'active' : ''}" onclick="chartMetric='${m}';renderChart()">${METRIC_LABELS[m]}</button>`
+  ).join('');
+
+  const html = sorted.map(d => {
+    const va = d[`${metric}_A`];
+    const vb = d[`${metric}_B`];
+    const wa = (va / maxVal * 100).toFixed(1);
+    const wb = (vb / maxVal * 100).toFixed(1);
+    return `
+    <div class="bar-group">
+      <div class="bar-row">
+        <span class="bar-label" title="${d['검색어']}">${d['검색어']}</span>
+        <div class="bar-track"><div class="bar-fill a" style="width:${wa}%"></div></div>
+        <span class="bar-val" style="color:rgba(77,159,255,0.9)">${fmt(va)}</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label"></span>
+        <div class="bar-track"><div class="bar-fill b" style="width:${wb}%"></div></div>
+        <span class="bar-val" style="color:rgba(0,229,160,0.9)">${fmt(vb)}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('barChart').innerHTML = html;
+}
+
+// Render table
+function renderTable() {
+  const metric = document.getElementById('sortMetric').value;
+  const dir = document.getElementById('sortDir').value;
+  const pageSize = parseInt(document.getElementById('pageSize').value);
+  const search = document.getElementById('searchInput').value.trim().toLowerCase();
+
+  renderSummary();
+
+  let data = mergedData.filter(d => {
+    const kw = d['검색어'].toLowerCase();
+    if (search && !kw.includes(search)) return false;
+    if (currentFilter === 'up') return d[`${metric}_delta`] > 0;
+    if (currentFilter === 'down') return d[`${metric}_delta`] < 0;
+    if (currentFilter === 'new') return d.status === 'new';
+    if (currentFilter === 'gone') return d.status === 'gone';
+    return true;
+  });
+
+  // Sort
+  const sc = sortCol || `${metric}_B`;
+  data.sort((a,b) => {
+    let va = a[sc] ?? 0, vb = b[sc] ?? 0;
+    if (typeof va === 'string') va = va.localeCompare(vb);
+    return sortAsc ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
+  });
+
+  if (dir === 'asc') data.reverse && null; // handled by sortAsc
+
+  const total = data.length;
+  const totalPages = Math.ceil(total / pageSize);
+  currentPage = Math.min(currentPage, totalPages || 1);
+  const start = (currentPage - 1) * pageSize;
+  const pageData = data.slice(start, start + pageSize);
+
+  document.getElementById('tableCount').textContent = `${total.toLocaleString()} 건`;
+
+  // Header
+  const makeTh = (label, key) =>
+    `<th onclick="thClick('${key}')" class="${sortCol === key ? 'sorted' : ''}">${label}${sortCol===key?(sortAsc?' ↑':' ↓'):''}</th>`;
+
+  document.getElementById('tableHead').innerHTML = `<tr>
+    <th onclick="thClick('캠페인')">캠페인</th>
+    <th onclick="thClick('검색어')">검색어</th>
+    ${makeTh('A: '+METRIC_LABELS[metric], `${metric}_A`)}
+    ${makeTh('B: '+METRIC_LABELS[metric], `${metric}_B`)}
+    ${makeTh('증감', `${metric}_delta`)}
+    <th>증감률</th>
+    <th>추이</th>
+    ${METRICS.filter(m=>m!==metric).map(m=>`${makeTh('A:'+METRIC_LABELS[m], m+'_A')}${makeTh('B:'+METRIC_LABELS[m], m+'_B')}`).join('')}
+  </tr>`;
+
+  // Max delta for bar
+  const maxDelta = Math.max(...data.map(d => Math.abs(d[`${metric}_delta`])), 1);
+
+  document.getElementById('tableBody').innerHTML = pageData.map(d => {
+    const va = d[`${metric}_A`];
+    const vb = d[`${metric}_B`];
+    const delta = d[`${metric}_delta`];
+    const pct = d[`${metric}_pct`];
+    const isNew = d.status === 'new';
+    const isGone = d.status === 'gone';
+
+    const dirClass = delta > 0 ? 'up' : delta < 0 ? 'down' : 'neutral';
+    const barW = (Math.abs(delta) / maxDelta * 100).toFixed(1);
+
+    const badge = isNew
+      ? `<span style="color:var(--accent);font-size:10px;font-family:'Space Mono';"> [신규]</span>`
+      : isGone
+      ? `<span style="color:var(--down);font-size:10px;font-family:'Space Mono';"> [소멸]</span>`
+      : '';
+
+    return `<tr>
+      <td title="${d['캠페인']}">${d['캠페인']}</td>
+      <td title="${d['검색어']}">${d['검색어']}${badge}</td>
+      <td class="val-a">${fmt(va)}</td>
+      <td class="val-b">${fmt(vb)}</td>
+      <td class="delta ${dirClass}">${fmtDelta(delta)}</td>
+      <td class="delta ${dirClass}">${fmtPct(pct)}</td>
+      <td class="delta-bar-cell">
+        <div class="delta-bar-wrap">
+          <div class="delta-bar ${dirClass}" style="width:${barW}%"></div>
+        </div>
+      </td>
+      ${METRICS.filter(m=>m!==metric).map(m => {
+        const a2 = d[`${m}_A`]; const b2 = d[`${m}_B`];
+        return `<td class="val-a">${fmt(a2)}</td><td class="val-b">${fmt(b2)}</td>`;
+      }).join('')}
+    </tr>`;
+  }).join('');
+
+  // Pagination
+  const paginEl = document.getElementById('pagination');
+  if (totalPages <= 1) { paginEl.innerHTML = ''; return; }
+  let btns = `<button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage<=1?'disabled':''}>‹</button>`;
+  const delta = 2;
+  let lo = Math.max(1, currentPage-delta), hi = Math.min(totalPages, currentPage+delta);
+  if (lo > 1) { btns += `<button class="page-btn" onclick="goPage(1)">1</button>`; if (lo > 2) btns += `<span class="page-btn" style="border:none;cursor:default">…</span>`; }
+  for (let p=lo; p<=hi; p++) btns += `<button class="page-btn ${p===currentPage?'active':''}" onclick="goPage(${p})">${p}</button>`;
+  if (hi < totalPages) { if (hi < totalPages-1) btns += `<span class="page-btn" style="border:none;cursor:default">…</span>`; btns += `<button class="page-btn" onclick="goPage(${totalPages})">${totalPages}</button>`; }
+  btns += `<button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage>=totalPages?'disabled':''}>›</button>`;
+  btns += `<span class="page-info">${start+1}–${Math.min(start+pageSize, total)} / ${total}</span>`;
+  paginEl.innerHTML = btns;
+}
+
+function thClick(key) {
+  if (sortCol === key) sortAsc = !sortAsc;
+  else { sortCol = key; sortAsc = false; }
+  renderTable();
+}
+
+function goPage(p) { currentPage = p; renderTable(); window.scrollTo(0, document.getElementById('tableHead').getBoundingClientRect().top + window.scrollY - 80); }
+
+function setFilter(f) {
+  currentFilter = f;
+  currentPage = 1;
+  ['filterAll','filterUp','filterDown','filterNew','filterGone'].forEach(id => {
+    document.getElementById(id).classList.remove('active','active-down');
+  });
+  const btn = document.getElementById('filter' + f.charAt(0).toUpperCase() + f.slice(1));
+  if (btn) {
+    btn.classList.add(f === 'down' ? 'active-down' : 'active');
+  }
+  renderTable();
+}
+
+// File loading
+function processFiles() {
+  if (!dataA || !dataB) return;
+
+  document.getElementById('loadingEl').classList.add('visible');
+  document.getElementById('emptyState').style.display = 'none';
+
+  setTimeout(() => {
+    mergedData = mergeData(dataA.rows, dataB.rows);
+    periodA = dataA.period;
+    periodB = dataB.period;
+
+    document.getElementById('periodLabel').textContent = `${periodA}  →  ${periodB}`;
+    document.getElementById('statusText').textContent = `${mergedData.length.toLocaleString()} keywords`;
+
+    document.getElementById('loadingEl').classList.remove('visible');
+    document.getElementById('results').style.display = 'block';
+
+    sortCol = '클릭수_B';
+    sortAsc = false;
+    renderSummary();
+    renderChart();
+    renderTable();
+  }, 200);
+}
+
+function readFile(file, which) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const parsed = parseCSV(e.target.result);
+    if (which === 'A') {
+      dataA = parsed;
+      document.getElementById('fileAName').textContent = file.name;
+      document.getElementById('fileAPeriod').textContent = parsed.period ? `기간: ${parsed.period}` : '';
+      document.getElementById('dropA').classList.add('loaded');
+    } else {
+      dataB = parsed;
+      document.getElementById('fileBName').textContent = file.name;
+      document.getElementById('fileBPeriod').textContent = parsed.period ? `기간: ${parsed.period}` : '';
+      document.getElementById('dropB').classList.add('loaded');
+    }
+    processFiles();
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+document.getElementById('fileA').addEventListener('change', (e) => {
+  if (e.target.files[0]) readFile(e.target.files[0], 'A');
+});
+document.getElementById('fileB').addEventListener('change', (e) => {
+  if (e.target.files[0]) readFile(e.target.files[0], 'B');
+});
+
+document.getElementById('searchInput').addEventListener('input', () => {
+  currentPage = 1;
+  renderTable();
+});
+
+document.getElementById('sortMetric').addEventListener('change', () => {
+  sortCol = null;
+  renderChart();
+  renderTable();
+});
+
+// Drag and drop
+['dropA','dropB'].forEach(id => {
+  const el = document.getElementById(id);
+  const which = id === 'dropA' ? 'A' : 'B';
+  el.addEventListener('dragover', (e) => { e.preventDefault(); el.classList.add('dragover'); });
+  el.addEventListener('dragleave', () => el.classList.remove('dragover'));
+  el.addEventListener('drop', (e) => {
+    e.preventDefault();
+    el.classList.remove('dragover');
+    const f = e.dataTransfer.files[0];
+    if (f) readFile(f, which);
+  });
+});
+
+// Excel download (전체 데이터, 필터 무관)
+function downloadExcel() {
+  if (!mergedData.length) return;
+  const btn = document.getElementById('downloadBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span>⏳</span> 생성 중...';
+
+  setTimeout(() => {
+    try {
+      const metric = document.getElementById('sortMetric').value;
+
+      // Build header row
+      const headers = [
+        '캠페인', '검색어', '상태',
+        `A_노출수(${periodA})`, `B_노출수(${periodB})`, '노출수_증감', '노출수_증감률(%)',
+        `A_클릭수(${periodA})`, `B_클릭수(${periodB})`, '클릭수_증감', '클릭수_증감률(%)',
+        `A_클릭률%(${periodA})`, `B_클릭률%(${periodB})`, '클릭률_증감',
+        `A_평균CPC(${periodA})`, `B_평균CPC(${periodB})`, '평균CPC_증감',
+        `A_총비용(${periodA})`, `B_총비용(${periodB})`, '총비용_증감', '총비용_증감률(%)',
+      ];
+
+      // Status label
+      const statusLabel = (s) => {
+        if (s === 'new') return '신규';
+        if (s === 'gone') return '소멸';
+        if (s === 'up') return '증가';
+        if (s === 'down') return '감소';
+        return '변동없음';
+      };
+
+      const rows = mergedData.map(d => [
+        d['캠페인'],
+        d['검색어'],
+        statusLabel(d.status),
+        d['노출수_A'],   d['노출수_B'],   d['노출수_delta'],   d['노출수_pct'] != null ? parseFloat(d['노출수_pct'].toFixed(2)) : 0,
+        d['클릭수_A'],   d['클릭수_B'],   d['클릭수_delta'],   d['클릭수_pct'] != null ? parseFloat(d['클릭수_pct'].toFixed(2)) : 0,
+        d['클릭률(%)_A'], d['클릭률(%)_B'], d['클릭률(%)_delta'],
+        d['평균 CPC_A'], d['평균 CPC_B'], d['평균 CPC_delta'],
+        d['총비용_A'],   d['총비용_B'],   d['총비용_delta'],   d['총비용_pct'] != null ? parseFloat(d['총비용_pct'].toFixed(2)) : 0,
+      ]);
+
+      // Sort by 클릭수_B desc (same default as table)
+      rows.sort((a, b) => b[8] - a[8]);
+
+      const wsData = [headers, ...rows];
+
+      // Build workbook manually (no SheetJS needed — use CSV→xlsx via encoded URI)
+      // Since SheetJS may not be loaded, we use a pure-JS XLSX writer approach via CSV BOM trick
+      // Actually: build real xlsx using SheetJS if available, otherwise fall back to CSV
+      if (typeof XLSX !== 'undefined') {
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+        // Column widths
+        ws['!cols'] = [
+          {wch:30},{wch:20},{wch:8},
+          {wch:12},{wch:12},{wch:10},{wch:12},
+          {wch:10},{wch:10},{wch:10},{wch:12},
+          {wch:10},{wch:10},{wch:10},
+          {wch:10},{wch:10},{wch:10},
+          {wch:12},{wch:12},{wch:10},{wch:12},
+        ];
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, '검색어 증감 비교');
+
+        // Summary sheet
+        const summaryData = [
+          ['구분', '값'],
+          ['Period A', periodA],
+          ['Period B', periodB],
+          ['총 검색어(공통)', mergedData.filter(d=>d.status!=='new'&&d.status!=='gone').length],
+          ['신규 검색어', mergedData.filter(d=>d.status==='new').length],
+          ['소멸 검색어', mergedData.filter(d=>d.status==='gone').length],
+          ['클릭수 증가', mergedData.filter(d=>d['클릭수_delta']>0).length],
+          ['클릭수 감소', mergedData.filter(d=>d['클릭수_delta']<0).length],
+          ['총비용 A 합계', mergedData.reduce((s,d)=>s+d['총비용_A'],0)],
+          ['총비용 B 합계', mergedData.reduce((s,d)=>s+d['총비용_B'],0)],
+          ['클릭수 A 합계', mergedData.reduce((s,d)=>s+d['클릭수_A'],0)],
+          ['클릭수 B 합계', mergedData.reduce((s,d)=>s+d['클릭수_B'],0)],
+        ];
+        const ws2 = XLSX.utils.aoa_to_sheet(summaryData);
+        ws2['!cols'] = [{wch:20},{wch:20}];
+        XLSX.utils.book_append_sheet(wb, ws2, '요약');
+
+        const fname = `검색어증감비교_${periodA}_vs_${periodB}.xlsx`.replace(/[/\\:*?"<>|]/g,'_');
+        XLSX.writeFile(wb, fname);
+      } else {
+        // Fallback: CSV with BOM
+        const csvRows = wsData.map(row =>
+          row.map(cell => {
+            const s = String(cell ?? '');
+            return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g,'""')}"` : s;
+          }).join(',')
+        );
+        const csvContent = '\uFEFF' + csvRows.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `검색어증감비교_${periodA}_vs_${periodB}.csv`.replace(/[/\\:*?"<>|]/g,'_');
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch(e) {
+      console.error(e);
+      alert('다운로드 중 오류가 발생했습니다: ' + e.message);
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<span>⬇</span> 전체 다운로드 (.xlsx)';
+  }, 50);
+}
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</body>
+</html>
